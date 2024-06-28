@@ -147,7 +147,7 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
                 [uuid]
               );
 
-              if (teamIds.rows.length > 0) {
+              if (teamIds.rows.length === 0) {
                 ws.publish(
                   ws.data.uuid,
                   JSON.stringify({
