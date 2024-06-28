@@ -52,6 +52,14 @@ async function uuidFromUsername(username: string): Promise<string> {
   return response.uuid;
 }
 
+async function usernameFromUUID(uuid: string): Promise<string> {
+  const response = (await (
+    await fetch(`https://api.ashcon.app/mojang/v2/user/${uuid}`)
+  ).json()) as any;
+
+  return response.username;
+}
+
 Bun.serve<{ username: string; host: string; uuid: string }>({
   websocket: {
     publishToSelf: true,
@@ -64,6 +72,7 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
           | { type: "ping"; x: number; y: number; z: number }
           | { type: "createTeam"; teamName: string }
           | { type: "joinTeam"; teamName: string }
+          | { type: "listTeamMembers" }
           | { type: "invitetoteam"; playerInvited: string } =
           JSON.parse(message);
 
@@ -121,6 +130,43 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
                 JSON.stringify({
                   type: "notification",
                   message: "Failed to join team, you have no pending invite.",
+                })
+              );
+            }
+            break;
+          }
+          case "listTeamMembers": {
+            const teamIds = await client.query(
+              `SELECT team_id FROM team_members WHERE player_uuid = $1;`,
+              [ws.data.uuid]
+            );
+            const { username, uuid } = ws.data;
+            if (teamIds.rows.length > 0) {
+              const { team_id } = teamIds.rows[0];
+              const playerUUIDs = await client.query(
+                `SELECT player_uuid FROM team_members WHERE team_id = $1;`,
+                [team_id]
+              );
+              const playersInTeam = await Promise.all(
+                playerUUIDs.rows.map((x) => usernameFromUUID(x.player_uuid))
+              );
+
+              ws.publish(
+                uuid,
+                JSON.stringify({
+                  type: "notification",
+                  message: `Players in '${team_id}': ${playersInTeam.join(
+                    ", "
+                  )}`,
+                })
+              );
+            } else {
+              ws.publish(
+                uuid,
+                JSON.stringify({
+                  type: "notification",
+                  message:
+                    "Failed to ping, you don't have a team! Join a team first before pinging.",
                 })
               );
             }
