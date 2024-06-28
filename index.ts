@@ -65,6 +65,15 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
             const { username, host, uuid } = packet;
             ws.data = { host, username, uuid };
             ws.subscribe(uuid); // for notifications
+
+            const teamIds = await client.query(
+              `SELECT team_id FROM team_members WHERE player_uuid = $1;`,
+              [ws.data.uuid]
+            );
+
+            if (teamIds.rows.length > 0) {
+              ws.subscribe(teamIds.rows[0].team_id);
+            }
             break;
           }
           case "disconnected": {
@@ -72,7 +81,7 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
             break;
           }
           case "createTeam": {
-            const uuid = uuidFromUsername(ws.data.username);
+            const { uuid } = ws.data;
 
             {
               const teamIds = await client.query(
@@ -138,9 +147,10 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
                   ws.data.uuid,
                   JSON.stringify({
                     type: "notification",
-                    message: `Created team with name ${packet.teamName}`,
+                    message: `Created team with name '${packet.teamName}'`,
                   })
                 );
+                ws.subscribe(teamIds.rows[0].team_id);
               }
             }
 
@@ -160,7 +170,7 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
 
             const teamIds = await client.query(
               `SELECT team_id FROM team_members WHERE player_uuid = $1;`,
-              [uuidFromUsername(ws.data.username)]
+              [ws.data.uuid]
             );
             const { username, uuid } = ws.data;
             if (teamIds.rows.length > 0) {
