@@ -23,7 +23,7 @@ await client.query(`CREATE TABLE IF NOT EXISTS team_members (
 		NOT NULL
 		PRIMARY KEY,
 	team_id
-		STRING
+		TEXT
 		NOT NULL
 		UNIQUE
 );`);
