@@ -119,16 +119,23 @@ Bun.serve<{ username: string; uuid: string }>({
               }
             }
 
+            // team_invites player_invited_uuid team_invited_id
             const teamIds = await client.query(
-              `DELETE FROM team_invites WHERE team_invited_id = $1 AND player_invited_uuid = $2 RETURNING team_id;`,
+              `
+              SELECT team_invited_id from team_invites WHERE team_invited_id = $1 AND player_invited_uuid = $2;`,
               [packet.teamName, ws.data.uuid]
             );
             if (teamIds.rows.length > 0) {
-              const teamName = teamIds.rows[0].team_id;
+              const teamName = teamIds.rows[0].team_invited_id;
 
               await client.query(
                 `INSERT INTO team_members (player_uuid, team_id) VALUES ($1, $2);`,
                 [ws.data.uuid, teamName]
+              );
+
+              await client.query(
+                `DELETE FROM team_invites WHERE team_invited_id = $1 AND player_invited_uuid = $2 RETURNING team_id;`,
+                [packet.teamName, ws.data.uuid]
               );
 
               ws.publish(
