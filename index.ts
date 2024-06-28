@@ -12,14 +12,14 @@ await client.query(`CREATE TABLE IF NOT EXISTS teams (
 		NOT NULL
 		PRIMARY KEY,
 	owner_uuid
-		STRING
+		TEXT
 		NOT NULL
 		UNIQUE
 );`);
 
 await client.query(`CREATE TABLE IF NOT EXISTS team_members (
 	player_uuid
-		STRING
+		TEXT
 		NOT NULL
 		PRIMARY KEY,
 	team_id
