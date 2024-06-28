@@ -60,14 +60,14 @@ async function usernameFromUUID(uuid: string): Promise<string> {
   return response.username;
 }
 
-Bun.serve<{ username: string; host: string; uuid: string }>({
+Bun.serve<{ username: string; uuid: string }>({
   websocket: {
     publishToSelf: true,
     async message(ws, message) {
       if (typeof message !== "string") return;
       try {
         const packet:
-          | { type: "connected"; username: string; host: string; uuid: string }
+          | { type: "connected"; username: string; uuid: string }
           | { type: "disconnected" }
           | { type: "ping"; x: number; y: number; z: number }
           | { type: "createTeam"; teamName: string }
@@ -79,17 +79,11 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
           JSON.parse(message);
 
         console.log(`received packet: ${JSON.stringify(packet)}`);
-        if (
-          packet.type === "connected" &&
-          packet.host.includes("midnightsky.") === true
-        ) {
-          packet.host = "midnightsky";
-        }
 
         switch (packet.type) {
           case "connected": {
-            const { username, host, uuid } = packet;
-            ws.data = { host, username, uuid };
+            const { username, uuid } = packet;
+            ws.data = { username, uuid };
             ws.subscribe(uuid); // for notifications
 
             const teamIds = await client.query(
@@ -103,7 +97,7 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
             break;
           }
           case "disconnected": {
-            ws.unsubscribe(ws.data.host);
+            // ws.unsubscribe();
             break;
           }
           case "joinTeam": {
@@ -337,14 +331,6 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
 
           case "ping": {
             console.log(`data: ${JSON.stringify(ws.data)}`);
-            if (ws.data.host === "") {
-              console.log(
-                `ip is an empty string, so returning early, packet: ${JSON.stringify(
-                  packet
-                )}`
-              );
-              break;
-            }
 
             const teamIds = await client.query(
               `SELECT team_id FROM team_members WHERE player_uuid = $1;`,
