@@ -6,6 +6,10 @@ const client = new Client({
 });
 await client.connect();
 
+await client.query("DROP TABLE teams");
+await client.query("DROP TABLE team_members");
+await client.query("DROP TABLE team_invites");
+
 await client.query(`CREATE TABLE IF NOT EXISTS teams (
 	team_id
 		TEXT
@@ -25,7 +29,15 @@ await client.query(`CREATE TABLE IF NOT EXISTS team_members (
 	team_id
 		TEXT
 		NOT NULL
-		UNIQUE
+);`);
+
+await client.query(`CREATE TABLE IF NOT EXISTS team_invites (
+	player_invited_uuid
+		TEXT
+		NOT NULL,
+	team_invited_id
+		TEXT
+		NOT NULL
 );`);
 
 const res = await client.query("SELECT $1::text as message", ["Hello world!"]);
@@ -50,7 +62,9 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
           | { type: "connected"; username: string; host: string; uuid: string }
           | { type: "disconnected" }
           | { type: "ping"; x: number; y: number; z: number }
-          | { type: "createTeam"; teamName: string } = JSON.parse(message);
+          | { type: "createTeam"; teamName: string }
+          | { type: "invitetoteam"; playerInvited: string } =
+          JSON.parse(message);
 
         console.log(`received packet: ${JSON.stringify(packet)}`);
         if (
@@ -154,6 +168,44 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
               }
             }
 
+            break;
+          }
+
+          case "invitetoteam": {
+            const { uuid } = ws.data;
+
+            {
+              const teamIds = await client.query(
+                `SELECT team_id FROM teams WHERE owner_uuid = $1;`,
+                [uuid]
+              );
+
+              if (teamIds.rows.length === 0) {
+                ws.publish(
+                  ws.data.uuid,
+                  JSON.stringify({
+                    type: "notification",
+                    message: "Failed to invite to team, you don't own a team.",
+                  })
+                );
+              } else {
+                const playerInvitedUUID = await uuidFromUsername(
+                  ws.data.username
+                );
+                const teamId = teamIds.rows[0].team_id;
+                await client.query(
+                  `INSERT INTO team_invites (player_invited_uuid, team_invited_id) VALUES ($1, $2);`,
+                  [playerInvitedUUID, teamId]
+                );
+                ws.publish(
+                  await uuidFromUsername(ws.data.username),
+                  JSON.stringify({
+                    type: "notification",
+                    message: `You have been invited to team: '${teamId}'. To join run /jointeam ${teamId}`,
+                  })
+                );
+              }
+            }
             break;
           }
 
