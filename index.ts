@@ -74,7 +74,7 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
           | { type: "joinTeam"; teamName: string }
           | { type: "listTeamMembers" }
           | { type: "leaveTeam" }
-          | { type: "kickFromTeam"; teamName: string }
+          | { type: "kickFromTeam"; playerName: string }
           | { type: "invitetoteam"; playerInvited: string } =
           JSON.parse(message);
 
@@ -159,8 +159,11 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
             );
             if (teamIds.rows.length > 0) {
               const result = await client.query(
-                `DELETE FROM team_members WHERE team_id = $1;`,
-                [teamIds.rows[0].team_Id]
+                `DELETE FROM team_members WHERE team_id = $1 AND player_uuid = $2;`,
+                [
+                  teamIds.rows[0].team_id,
+                  await uuidFromUsername(packet.playerName),
+                ]
               );
               ws.publish(
                 uuid,
