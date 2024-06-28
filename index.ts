@@ -102,6 +102,23 @@ Bun.serve<{ username: string; uuid: string }>({
             break;
           }
           case "joinTeam": {
+            {
+              const teamIds = await client.query(
+                `SELECT team_id FROM team_members WHERE player_uuid = $1;`,
+                [ws.data.uuid]
+              );
+              if (teamIds.rows.length > 0) {
+                ws.publish(
+                  ws.data.uuid,
+                  JSON.stringify({
+                    type: "notification",
+                    message: `You are already in the team: '${teamIds.rows[0].team_id}', run /leaveteam to leave your team before joining a new team.`,
+                  })
+                );
+                break;
+              }
+            }
+
             const teamIds = await client.query(
               `DELETE FROM team_invites WHERE team_invited_id = $1 AND player_invited_uuid = $2 RETURNING team_id;`,
               [packet.teamName, ws.data.uuid]
@@ -153,16 +170,24 @@ Bun.serve<{ username: string; uuid: string }>({
               [uuid]
             );
             if (teamIds.rows.length > 0) {
-              await client.query(
+              const { rowCount: teamMembersCount } = await client.query(
                 `DELETE FROM team_members WHERE team_id = $1`,
                 [teamIds.rows[0].team_id]
               );
-              await client.query(`DELETE FROM teams WHERE team_id = $1`, [
-                teamIds.rows[0].team_id,
-              ]);
-              await client.query(
+              const { rowCount: teamCount } = await client.query(
+                `DELETE FROM teams WHERE team_id = $1`,
+                [teamIds.rows[0].team_id]
+              );
+              const { rowCount: inviteCount } = await client.query(
                 `DELETE FROM team_invites WHERE team_invited_id = $1`,
                 [teamIds.rows[0].team_id]
+              );
+              ws.publish(
+                uuid,
+                JSON.stringify({
+                  type: "notification",
+                  message: `Disbanded team (${teamCount}), kicked members (${teamMembersCount}), revoked invites (${inviteCount}).`,
+                })
               );
               // todo: unsubscribe them and members of that team from pings to that name
               // otherwise if someone remakes that team with same name they will get those pings...
