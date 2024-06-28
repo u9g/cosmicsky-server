@@ -208,7 +208,7 @@ Bun.serve<{ username: string; uuid: string }>({
                 JSON.stringify({
                   type: "notification",
                   message:
-                    "Failed to ping, you don't have a team! Join a team first before pinging.",
+                    "Tou don't have a team! Join a team first before listing team members.",
                 })
               );
             }
@@ -292,12 +292,12 @@ Bun.serve<{ username: string; uuid: string }>({
           }
 
           case "invitetoteam": {
-            const { uuid } = ws.data;
+            const uuidInvited = await uuidFromUsername(packet.playerInvited);
 
             {
               const teamIds = await client.query(
                 `SELECT team_id FROM teams WHERE owner_uuid = $1;`,
-                [uuid]
+                [uuidInvited]
               );
 
               if (teamIds.rows.length === 0) {
@@ -309,16 +309,13 @@ Bun.serve<{ username: string; uuid: string }>({
                   })
                 );
               } else {
-                const playerInvitedUUID = await uuidFromUsername(
-                  ws.data.username
-                );
                 const teamId = teamIds.rows[0].team_id;
                 await client.query(
                   `INSERT INTO team_invites (player_invited_uuid, team_invited_id) VALUES ($1, $2);`,
-                  [playerInvitedUUID, teamId]
+                  [uuidInvited, teamId]
                 );
                 ws.publish(
-                  await uuidFromUsername(ws.data.username),
+                  uuidInvited,
                   JSON.stringify({
                     type: "notification",
                     message: `You have been invited to team: '${teamId}'. To join run /jointeam ${teamId}`,
