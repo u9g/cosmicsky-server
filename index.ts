@@ -75,6 +75,7 @@ Bun.serve<{ username: string; uuid: string }>({
           | { type: "listTeamMembers" }
           | { type: "leaveTeam" }
           | { type: "kickFromTeam"; playerName: string }
+          | { type: "disbandTeam" }
           | { type: "invitetoteam"; playerInvited: string } =
           JSON.parse(message);
 
@@ -143,6 +144,37 @@ Bun.serve<{ username: string; uuid: string }>({
                 message: `Left team (${result.rowCount})`,
               })
             );
+            break;
+          }
+          case "disbandTeam": {
+            const { uuid } = ws.data;
+            const teamIds = await client.query(
+              `SELECT team_id FROM teams WHERE owner_uuid = $1;`,
+              [uuid]
+            );
+            if (teamIds.rows.length > 0) {
+              await client.query(
+                `DELETE FROM team_members WHERE team_id = $1`,
+                [teamIds.rows[0].team_id]
+              );
+              await client.query(`DELETE FROM teams WHERE team_id = $1`, [
+                teamIds.rows[0].team_id,
+              ]);
+              await client.query(
+                `DELETE FROM team_invites WHERE team_invited_id = $1`,
+                [teamIds.rows[0].team_id]
+              );
+              // todo: unsubscribe them and members of that team from pings to that name
+              // otherwise if someone remakes that team with same name they will get those pings...
+            } else {
+              ws.publish(
+                uuid,
+                JSON.stringify({
+                  type: "notification",
+                  message: `You don't own a team.`,
+                })
+              );
+            }
             break;
           }
           case "kickFromTeam": {
@@ -230,6 +262,23 @@ Bun.serve<{ username: string; uuid: string }>({
                     type: "notification",
                     message:
                       "Failed to create team, a team with this name already exists.",
+                  })
+                );
+              }
+            }
+
+            {
+              const teamIds = await client.query(
+                `SELECT team_id FROM teams WHERE owner_uuid = $1;`,
+                [ws.data.uuid]
+              );
+
+              if (teamIds.rows.length > 0) {
+                ws.publish(
+                  ws.data.uuid,
+                  JSON.stringify({
+                    type: "notification",
+                    message: "Failed to create team, you already have a team!",
                   })
                 );
               }
