@@ -74,6 +74,7 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
           | { type: "joinTeam"; teamName: string }
           | { type: "listTeamMembers" }
           | { type: "leaveTeam" }
+          | { type: "kickFromTeam"; teamName: string }
           | { type: "invitetoteam"; playerInvited: string } =
           JSON.parse(message);
 
@@ -150,12 +151,41 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
             );
             break;
           }
+          case "kickFromTeam": {
+            const { uuid } = ws.data;
+            const teamIds = await client.query(
+              `SELECT team_id FROM teams WHERE owner_uuid = $1;`,
+              [uuid]
+            );
+            if (teamIds.rows.length > 0) {
+              const result = await client.query(
+                `DELETE FROM team_members WHERE team_id = $1;`,
+                [teamIds.rows[0].team_Id]
+              );
+              ws.publish(
+                uuid,
+                JSON.stringify({
+                  type: "notification",
+                  message: `Tried to kick player from team. (${result.rowCount})`,
+                })
+              );
+            } else {
+              ws.publish(
+                uuid,
+                JSON.stringify({
+                  type: "notification",
+                  message: `You don't own a team.`,
+                })
+              );
+            }
+            break;
+          }
           case "listTeamMembers": {
             const teamIds = await client.query(
               `SELECT team_id FROM team_members WHERE player_uuid = $1;`,
               [ws.data.uuid]
             );
-            const { username, uuid } = ws.data;
+            const { uuid } = ws.data;
             if (teamIds.rows.length > 0) {
               const { team_id } = teamIds.rows[0];
               const playerUUIDs = await client.query(
