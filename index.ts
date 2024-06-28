@@ -134,7 +134,7 @@ Bun.serve<{ username: string; uuid: string }>({
               );
 
               await client.query(
-                `DELETE FROM team_invites WHERE team_invited_id = $1 AND player_invited_uuid = $2 RETURNING team_id;`,
+                `DELETE FROM team_invites WHERE team_invited_id = $1 AND player_invited_uuid = $2;`,
                 [packet.teamName, ws.data.uuid]
               );
 
