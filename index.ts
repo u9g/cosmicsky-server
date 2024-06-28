@@ -73,6 +73,7 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
           | { type: "createTeam"; teamName: string }
           | { type: "joinTeam"; teamName: string }
           | { type: "listTeamMembers" }
+          | { type: "leaveTeam" }
           | { type: "invitetoteam"; playerInvited: string } =
           JSON.parse(message);
 
@@ -106,7 +107,7 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
           }
           case "joinTeam": {
             const teamIds = await client.query(
-              `DELETE team_id FROM team_invites WHERE team_invited_id = $1 AND player_invited_uuid = $2 RETURNING team_id;`,
+              `DELETE FROM team_invites WHERE team_invited_id = $1 AND player_invited_uuid = $2 RETURNING team_id;`,
               [packet.teamName, ws.data.uuid]
             );
             if (teamIds.rows.length > 0) {
@@ -133,6 +134,20 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
                 })
               );
             }
+            break;
+          }
+          case "leaveTeam": {
+            const result = await client.query(
+              `DELETE FROM team_members WHERE player_uuid = $1;`,
+              [ws.data.uuid]
+            );
+            ws.publish(
+              ws.data.uuid,
+              JSON.stringify({
+                type: "notification",
+                message: `Left team (${result.rowCount})`,
+              })
+            );
             break;
           }
           case "listTeamMembers": {
