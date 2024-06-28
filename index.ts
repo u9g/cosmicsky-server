@@ -6,9 +6,9 @@ const client = new Client({
 });
 await client.connect();
 
-await client.query("DROP TABLE teams");
-await client.query("DROP TABLE team_members");
-await client.query("DROP TABLE team_invites");
+// await client.query("DROP TABLE teams");
+// await client.query("DROP TABLE team_members");
+// await client.query("DROP TABLE team_invites");
 
 await client.query(`CREATE TABLE IF NOT EXISTS teams (
 	team_id
