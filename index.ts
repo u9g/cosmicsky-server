@@ -64,7 +64,7 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
           case "connected": {
             const { username, host, uuid } = packet;
             ws.data = { host, username, uuid };
-            ws.subscribe(ws.data.host);
+            ws.subscribe(uuid); // for notifications
             break;
           }
           case "disconnected": {
@@ -162,7 +162,7 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
               `SELECT team_id FROM team_members WHERE player_uuid = $1;`,
               [uuidFromUsername(ws.data.username)]
             );
-            const { username } = ws.data;
+            const { username, uuid } = ws.data;
             if (teamIds.rows.length > 0) {
               const { team_id } = teamIds.rows[0];
               const { x, y, z } = packet;
@@ -173,7 +173,7 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
               console.log(`${username} pinged (${x}, ${y}, ${z})`);
             } else {
               ws.publish(
-                username,
+                uuid,
                 JSON.stringify({
                   type: "notification",
                   message:
