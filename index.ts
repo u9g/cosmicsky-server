@@ -63,6 +63,7 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
           | { type: "disconnected" }
           | { type: "ping"; x: number; y: number; z: number }
           | { type: "createTeam"; teamName: string }
+          | { type: "joinTeam"; teamName: string }
           | { type: "invitetoteam"; playerInvited: string } =
           JSON.parse(message);
 
@@ -92,6 +93,37 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
           }
           case "disconnected": {
             ws.unsubscribe(ws.data.host);
+            break;
+          }
+          case "joinTeam": {
+            const teamIds = await client.query(
+              `DELETE team_id FROM team_invites WHERE team_invited_id = $1 AND player_invited_uuid = $2 RETURNING team_id;`,
+              [packet.teamName, ws.data.uuid]
+            );
+            if (teamIds.rows.length > 0) {
+              const teamName = teamIds.rows[0].team_id;
+
+              await client.query(
+                `INSERT INTO team_members (player_uuid, team_id) VALUES ($1, $2);`,
+                [ws.data.uuid, teamName]
+              );
+
+              ws.publish(
+                ws.data.uuid,
+                JSON.stringify({
+                  type: "notification",
+                  message: `You joined the team '${teamName}'.`,
+                })
+              );
+            } else {
+              ws.publish(
+                ws.data.uuid,
+                JSON.stringify({
+                  type: "notification",
+                  message: "Failed to join team, you have no pending invite.",
+                })
+              );
+            }
             break;
           }
           case "createTeam": {
