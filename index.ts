@@ -150,6 +150,7 @@ Bun.serve<{ username: string; uuid: string }>({
             break;
           }
           case "leaveTeam": {
+            // todo: if you are the last member you should only be able to disband your team.
             const result = await client.query(
               `DELETE FROM team_members WHERE player_uuid = $1;`,
               [ws.data.uuid]
@@ -289,6 +290,7 @@ Bun.serve<{ username: string; uuid: string }>({
                       "Failed to create team, a team with this name already exists.",
                   })
                 );
+                break;
               }
             }
 
@@ -306,6 +308,7 @@ Bun.serve<{ username: string; uuid: string }>({
                     message: "Failed to create team, you already have a team!",
                   })
                 );
+                break;
               }
             }
 
@@ -323,6 +326,7 @@ Bun.serve<{ username: string; uuid: string }>({
                     message: "Failed to create team, you already have a team.",
                   })
                 );
+                break;
               }
             }
 
@@ -366,37 +370,42 @@ Bun.serve<{ username: string; uuid: string }>({
           }
 
           case "invitetoteam": {
+            const teamIds = await client.query(
+              `SELECT team_id FROM teams WHERE owner_uuid = $1;`,
+              [ws.data.uuid]
+            );
+
             const uuidInvited = await uuidFromUsername(packet.playerInvited);
-
-            {
-              const teamIds = await client.query(
-                `SELECT team_id FROM teams WHERE owner_uuid = $1;`,
-                [uuidInvited]
+            if (teamIds.rows.length === 0) {
+              ws.publish(
+                ws.data.uuid,
+                JSON.stringify({
+                  type: "notification",
+                  message: "Failed to invite to team, you don't own a team.",
+                })
               );
-
-              if (teamIds.rows.length === 0) {
-                ws.publish(
-                  ws.data.uuid,
-                  JSON.stringify({
-                    type: "notification",
-                    message: "Failed to invite to team, you don't own a team.",
-                  })
-                );
-              } else {
-                const teamId = teamIds.rows[0].team_id;
-                await client.query(
-                  `INSERT INTO team_invites (player_invited_uuid, team_invited_id) VALUES ($1, $2);`,
-                  [uuidInvited, teamId]
-                );
-                ws.publish(
-                  uuidInvited,
-                  JSON.stringify({
-                    type: "notification",
-                    message: `You have been invited to team: '${teamId}'. To join run /jointeam ${teamId}`,
-                  })
-                );
-              }
+            } else {
+              const teamId = teamIds.rows[0].team_id;
+              await client.query(
+                `INSERT INTO team_invites (player_invited_uuid, team_invited_id) VALUES ($1, $2);`,
+                [uuidInvited, teamId]
+              );
+              ws.publish(
+                ws.data.uuid,
+                JSON.stringify({
+                  type: "notification",
+                  message: `You have invited '${packet.playerInvited}' to team: '${teamId}'. To join, tell them to run /jointeam ${teamId}`,
+                })
+              );
+              ws.publish(
+                uuidInvited,
+                JSON.stringify({
+                  type: "notification",
+                  message: `You have been invited to team: '${teamId}'. To join run /jointeam ${teamId}`,
+                })
+              );
             }
+
             break;
           }
 
