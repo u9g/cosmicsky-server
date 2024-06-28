@@ -1,3 +1,14 @@
+import pg from "pg";
+const { Client } = pg;
+const client = new Client();
+await client.connect({
+  connectionString:
+    "postgresql://teamsdb_user:AEk2Pn5l0Va80MOwZDkiMbM7Y6IaRR2P@dpg-cpve4ihu0jms73aqpd40-a/teamsdb",
+});
+
+const res = await client.query("SELECT $1::text as message", ["Hello world!"]);
+console.log(res.rows[0].message); // Hello world!
+
 Bun.serve<{ username: string; host: string }>({
   websocket: {
     publishToSelf: true,
