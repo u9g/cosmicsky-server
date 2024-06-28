@@ -166,7 +166,10 @@ Bun.serve<{ username: string; host: string; uuid: string }>({
             if (teamIds.rows.length > 0) {
               const { team_id } = teamIds.rows[0];
               const { x, y, z } = packet;
-              ws.publish(team_id, JSON.stringify({ x, y, z, username }));
+              ws.publish(
+                team_id,
+                JSON.stringify({ x, y, z, username, type: "ping" })
+              );
               console.log(`${username} pinged (${x}, ${y}, ${z})`);
             } else {
               ws.publish(
