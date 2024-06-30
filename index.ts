@@ -47,10 +47,14 @@ await client.query(`CREATE TABLE IF NOT EXISTS player_settings (
 	show_pings
 		BOOLEAN
 );`);
-await client.query(`ALTER TABLE player_settings
-	ADD COLUMN
-		pings_sent_to_chat
-			BOOL IF NOT EXISTS column_name INTEGER;`);
+await client.query(`DO $$
+BEGIN
+    -- Check if the column does not exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='player_settings' AND column_name='pings_sent_to_chat') THEN
+        -- Add the column if it does not exist
+        ALTER TABLE player_settings ADD COLUMN pings_sent_to_chat BOOLEAN;
+    END IF;
+END $$;`);
 
 const res = await client.query("SELECT $1::text as message", ["Hello world!"]);
 console.log(res.rows[0].message); // Hello world!
