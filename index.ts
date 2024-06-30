@@ -168,17 +168,18 @@ Bun.serve<{ username: string; uuid: string }>({
               "<#9b5de5><bold><u>Settings</u> <gray>(Click on setting to change)</gray>",
 
               `<#00bbf9>Pings <#00f5d4>=> <hover:show_text:'<white>Click to ${
-                showPings ? enable : disable
+                !showPings ? enable : disable
               }'><click:run_command:/skyplussettings show_pings ${
-                showPings ? "enable" : "disable"
+                !showPings ? "enable" : "disable"
               }>${showPings ? enable : disable}d</hover>`,
 
               `<#00bbf9>Pings sent to chat <#00f5d4>=> <hover:show_text:'<white>Click to ${
-                pingsSentToChat ? enable : disable
+                !pingsSentToChat ? enable : disable
               }'><click:run_command:/skyplussettings pings_sent_to_chat ${
-                pingsSentToChat ? "enable" : "disable"
+                !pingsSentToChat ? "enable" : "disable"
               }>${pingsSentToChat ? enable : disable}d</hover>`,
             ];
+
             ws.publish(
               ws.data.uuid,
               JSON.stringify({
