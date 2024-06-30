@@ -50,7 +50,7 @@ await client.query(`CREATE TABLE IF NOT EXISTS player_settings (
 await client.query(`ALTER TABLE player_settings
 	ADD COLUMN
 		pings_sent_to_chat
-			BOOL;`);
+			BOOL IF NOT EXISTS column_name INTEGER;`);
 
 const res = await client.query("SELECT $1::text as message", ["Hello world!"]);
 console.log(res.rows[0].message); // Hello world!
@@ -442,7 +442,6 @@ Bun.serve<{ username: string; uuid: string }>({
 
             break;
           }
-
           case "invitetoteam": {
             const teamIds = await client.query(
               `SELECT team_id FROM teams WHERE owner_uuid = $1;`,
@@ -482,7 +481,6 @@ Bun.serve<{ username: string; uuid: string }>({
 
             break;
           }
-
           case "ping": {
             console.log(`data: ${JSON.stringify(ws.data)}`);
 
