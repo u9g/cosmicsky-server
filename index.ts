@@ -116,7 +116,7 @@ Bun.serve<{ username: string; uuid: string }>({
             }
 
             const settings = await client.query(
-              `SELECT show_pings FROM player_settings WHERE player_uuid = $1;`,
+              `SELECT show_pings, pings_sent_to_chat FROM player_settings WHERE player_uuid = $1;`,
               [ws.data.uuid]
             );
 
@@ -130,6 +130,16 @@ Bun.serve<{ username: string; uuid: string }>({
                     type: "setting",
                     name: "show_pings",
                     value: s.show_pings,
+                  })
+                );
+              }
+              if (s.pings_sent_to_chat) {
+                ws.publish(
+                  ws.data.uuid,
+                  JSON.stringify({
+                    type: "setting",
+                    name: "pings_sent_to_chat",
+                    value: s.pings_sent_to_chat,
                   })
                 );
               }
@@ -151,14 +161,23 @@ Bun.serve<{ username: string; uuid: string }>({
             let pingsSentToChat =
               playerSettings.pings_sent_to_chat ?? defaults.pings_sent_to_chat;
 
+            const enable = "<#f15bb5>Enable";
+            const disable = "<#fee440>Disable";
+
             let lines = [
               "<#9b5de5><bold><u>Settings</u> <gray>(Click on setting to change)</gray>",
-              `<#00bbf9>Pings <#00f5d4>=> ${
-                showPings ? "<#f15bb5>Enabled" : "<#fee440>Disabled"
-              }`,
-              `<#00bbf9>Pings sent to chat <#00f5d4>=> ${
-                pingsSentToChat ? "<#f15bb5>Enabled" : "<#fee440>Disabled"
-              }`,
+
+              `<#00bbf9>Pings <#00f5d4>=> <hover:show_text:'<white>Click to ${
+                showPings ? enable : disable
+              }'><click:run_command:/skyplussettings show_pings ${
+                showPings ? "enable" : "disable"
+              }>${showPings ? enable : disable}d</hover>`,
+
+              `<#00bbf9>Pings sent to chat <#00f5d4>=> <hover:show_text:'<white>Click to ${
+                pingsSentToChat ? enable : disable
+              }'><click:run_command:/skyplussettings pings_sent_to_chat ${
+                pingsSentToChat ? "enable" : "disable"
+              }>${pingsSentToChat ? enable : disable}d</hover>`,
             ];
             ws.publish(
               ws.data.uuid,
