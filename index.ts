@@ -542,7 +542,7 @@ Bun.serve<{ username: string; uuid: string }>({
             const updateQuery = (fieldName: string) =>
               `INSERT INTO player_settings (player_uuid, ${fieldName}) VALUES ($1, $2) ON CONFLICT (player_uuid) DO UPDATE SET ${fieldName} = excluded.${fieldName};`;
             async function booleanHandler(fieldName: string) {
-              if (commandData[1] === "true") {
+              if (commandData[1] === "enable") {
                 await client.query(updateQuery(fieldName), [
                   ws.data.uuid,
                   true,
@@ -554,7 +554,7 @@ Bun.serve<{ username: string; uuid: string }>({
                     message: "Updated show_pings to true.",
                   })
                 );
-              } else if (commandData[1] === "false") {
+              } else if (commandData[1] === "disable") {
                 await client.query(updateQuery(fieldName), [
                   ws.data.uuid,
                   false,
