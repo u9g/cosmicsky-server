@@ -113,10 +113,10 @@ Bun.serve<{ username: string; uuid: string }>({
         if (settingsFromDB.rows.length > 0) {
           const s = settingsFromDB.rows[0];
 
-          console.log(s);
+          const keys = Object.keys(s);
 
           for (const setting of settings) {
-            if (s[setting.id]) {
+            if (keys.includes(setting.id)) {
               ws.publish(
                 ws.data.uuid,
                 JSON.stringify({
