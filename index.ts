@@ -40,14 +40,19 @@ await client.query(`CREATE TABLE IF NOT EXISTS team_invites (
 		NOT NULL
 );`);
 
+await client.query(`DROP TABLE player_settings;`);
+
 await client.query(`CREATE TABLE IF NOT EXISTS player_settings (
 	player_uuid
 		TEXT
 		NOT NULL,
 	show_pings
 		BOOLEAN
-		NOT NULL
 );`);
+await client.query(`ALTER TABLE player_settings
+	ADD COLUMN
+		pings_sent_to_chat
+			BOOL;`);
 
 const res = await client.query("SELECT $1::text as message", ["Hello world!"]);
 console.log(res.rows[0].message); // Hello world!
@@ -128,7 +133,36 @@ Bun.serve<{ username: string; uuid: string }>({
             break;
           }
           case "showSettings": {
-            
+            const settings = await client.query(
+              `SELECT show_pings FROM player_settings WHERE player_uuid = $1;`,
+              [ws.data.uuid]
+            );
+
+            const defaults = { show_pings: true, pings_sent_to_chat: false };
+
+            const playerSettings =
+              settings.rows.length > 0 ? settings.rows[0] : defaults;
+
+            let showPings = playerSettings.show_pings ?? defaults.show_pings;
+            let pingsSentToChat =
+              playerSettings.pings_sent_to_chat ?? defaults.pings_sent_to_chat;
+
+            let lines = [
+              "<#9b5de5><bold><u>Settings</u> <gray>(Click on setting to change)</gray>",
+              `<#00bbf9>Pings <#00f5d4>=> ${
+                showPings ? "<#f15bb5>Enabled" : "<#fee440>Disabled"
+              }`,
+              `<#00bbf9>Pings sent to chat <#00f5d4>=> ${
+                pingsSentToChat ? "<#f15bb5>Enabled" : "<#fee440>Disabled"
+              }`,
+            ];
+            ws.publish(
+              ws.data.uuid,
+              JSON.stringify({
+                type: "notification",
+                minimessage: lines.join("\n"),
+              })
+            );
             break;
           }
           case "disconnected": {
