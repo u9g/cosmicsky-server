@@ -9,7 +9,7 @@ await client.connect();
 // await client.query("DROP TABLE teams");
 // await client.query("DROP TABLE team_members");
 // await client.query("DROP TABLE team_invites");
-// await client.query("DROP TABLE player_settings");
+await client.query("DROP TABLE player_settings");
 
 const settings = [
   {
@@ -25,13 +25,13 @@ const settings = [
     description: "Show Pings in chat",
   },
   {
-    id: "allow_swinging_at_low_durability",
+    id: "disable_swinging_at_low_durability",
     default: true,
     type: "boolean",
     description: "Disable swinging at low durability",
   },
   {
-    id: "ping_sound",
+    id: "should_ping_make_sounds",
     default: true,
     type: "boolean",
     description: "Pings make sounds",
