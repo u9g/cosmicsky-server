@@ -78,7 +78,8 @@ await client.query(`CREATE TABLE IF NOT EXISTS player_settings (
 );`);
 
 for (let i = 1; i < settings.length; i++) {
-  await client.query(`DO $$
+  if (settings[i].type === "boolean") {
+    await client.query(`DO $$
   BEGIN
       -- Check if the column does not exist
       IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='player_settings' AND column_name='${settings[i].id}') THEN
@@ -86,6 +87,7 @@ for (let i = 1; i < settings.length; i++) {
           ALTER TABLE player_settings ADD COLUMN ${settings[i].id} BOOLEAN;
       END IF;
   END $$;`);
+  }
 }
 
 const res = await client.query("SELECT $1::text as message", ["Hello world!"]);
