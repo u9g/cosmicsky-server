@@ -179,8 +179,8 @@ Bun.serve<{ username: string; uuid: string }>({
                 ? settingsFromDB.rows[0]
                 : defaults;
 
-            const enable = "<#f15bb5>Enable";
-            const disable = "<#fee440>Disable";
+            const enable = "<#fee440>Enable";
+            const disable = "<#f15bb5>Disable";
 
             let lines = [
               "<#9b5de5><bold><u>Settings</u> <gray>(Click on setting to change)</gray>",
