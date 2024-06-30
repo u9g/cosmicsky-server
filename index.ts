@@ -102,6 +102,32 @@ Bun.serve<{ username: string; uuid: string }>({
     async message(ws, message) {
       if (typeof message !== "string") return;
 
+      async function sendSettingsToClient() {
+        const settingsFromDB = await client.query(
+          `SELECT ${settings
+            .map((x) => x.id)
+            .join(", ")} FROM player_settings WHERE player_uuid = $1;`,
+          [ws.data.uuid]
+        );
+
+        if (settingsFromDB.rows.length > 0) {
+          const s = settingsFromDB.rows[0];
+
+          for (const setting of settings) {
+            if (s[setting.id]) {
+              ws.publish(
+                ws.data.uuid,
+                JSON.stringify({
+                  type: "setting",
+                  name: setting.id,
+                  value: s[setting.id],
+                })
+              );
+            }
+          }
+        }
+      }
+
       try {
         const packet:
           | { type: "connected"; username: string; uuid: string }
@@ -136,29 +162,7 @@ Bun.serve<{ username: string; uuid: string }>({
               ws.subscribe(teamIds.rows[0].team_id);
             }
 
-            const settingsFromDB = await client.query(
-              `SELECT ${settings
-                .map((x) => x.id)
-                .join(", ")} FROM player_settings WHERE player_uuid = $1;`,
-              [ws.data.uuid]
-            );
-
-            if (settingsFromDB.rows.length > 0) {
-              const s = settingsFromDB.rows[0];
-
-              for (const setting of settings) {
-                if (s[setting.id]) {
-                  ws.publish(
-                    ws.data.uuid,
-                    JSON.stringify({
-                      type: "setting",
-                      name: setting.id,
-                      value: s[setting.id],
-                    })
-                  );
-                }
-              }
-            }
+            await sendSettingsToClient();
             break;
           }
           case "showSettings": {
@@ -606,6 +610,8 @@ Bun.serve<{ username: string; uuid: string }>({
                 }
               }
             }
+
+            await sendSettingsToClient();
             break;
           }
           default: {
