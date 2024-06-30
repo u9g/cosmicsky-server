@@ -9,7 +9,7 @@ await client.connect();
 // await client.query("DROP TABLE teams");
 // await client.query("DROP TABLE team_members");
 // await client.query("DROP TABLE team_invites");
-await client.query("DROP TABLE player_settings");
+// await client.query("DROP TABLE player_settings");
 
 await client.query(`CREATE TABLE IF NOT EXISTS teams (
 	team_id
@@ -170,13 +170,13 @@ Bun.serve<{ username: string; uuid: string }>({
             let lines = [
               "<#9b5de5><bold><u>Settings</u> <gray>(Click on setting to change)</gray>",
 
-              `<#00bbf9>Pings <#00f5d4>=> <hover:show_text:'<white>Click to ${
+              `<#00bbf9>Show Pings ingame <#00f5d4>=> <hover:show_text:'<white>Click to ${
                 !showPings ? enable : disable
               }'><click:run_command:/skyplussettings show_pings ${
                 !showPings ? "enable" : "disable"
               }>${showPings ? enable : disable}d</hover>`,
 
-              `<#00bbf9>Pings sent to chat <#00f5d4>=> <hover:show_text:'<white>Click to ${
+              `<#00bbf9>Show Pings in chat <#00f5d4>=> <hover:show_text:'<white>Click to ${
                 !pingsSentToChat ? enable : disable
               }'><click:run_command:/skyplussettings pings_sent_to_chat ${
                 !pingsSentToChat ? "enable" : "disable"
