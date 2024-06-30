@@ -40,8 +40,6 @@ await client.query(`CREATE TABLE IF NOT EXISTS team_invites (
 		NOT NULL
 );`);
 
-await client.query(`DROP TABLE player_settings;`);
-
 await client.query(`CREATE TABLE IF NOT EXISTS player_settings (
 	player_uuid
 		TEXT
@@ -160,7 +158,7 @@ Bun.serve<{ username: string; uuid: string }>({
               ws.data.uuid,
               JSON.stringify({
                 type: "notification",
-                minimessage: lines.join("\n"),
+                minimessage: "\n\n" + lines.join("\n") + "\n\n",
               })
             );
             break;
