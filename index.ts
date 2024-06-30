@@ -81,7 +81,7 @@ Bun.serve<{ username: string; uuid: string }>({
     publishToSelf: true,
     async message(ws, message) {
       if (typeof message !== "string") return;
-      if (!ws.data) return;
+
       try {
         const packet:
           | { type: "connected"; username: string; uuid: string }
@@ -99,6 +99,7 @@ Bun.serve<{ username: string; uuid: string }>({
 
         console.log(`received packet: ${JSON.stringify(packet)}`);
 
+        if (packet.type !== "connected" && !ws.data) return;
         switch (packet.type) {
           case "connected": {
             const { username, uuid } = packet;
