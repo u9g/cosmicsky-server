@@ -159,7 +159,7 @@ Bun.serve<{ username: string; uuid: string }>({
               ws.data.uuid,
               JSON.stringify({
                 type: "notification",
-                minimessage: "\n\n" + lines.join("\n") + "\n\n",
+                minimessage: "\n\n" + lines.join("\n\n") + "\n\n",
               })
             );
             break;
