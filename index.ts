@@ -9,6 +9,7 @@ await client.connect();
 // await client.query("DROP TABLE teams");
 // await client.query("DROP TABLE team_members");
 // await client.query("DROP TABLE team_invites");
+await client.query("DROP TABLE player_settings");
 
 await client.query(`CREATE TABLE IF NOT EXISTS teams (
 	team_id
@@ -43,6 +44,7 @@ await client.query(`CREATE TABLE IF NOT EXISTS team_invites (
 await client.query(`CREATE TABLE IF NOT EXISTS player_settings (
 	player_uuid
 		TEXT
+    UNIQUE
 		NOT NULL,
 	show_pings
 		BOOLEAN
