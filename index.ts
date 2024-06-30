@@ -28,7 +28,13 @@ const settings = [
     id: "allow_swinging_at_low_durability",
     default: true,
     type: "boolean",
-    description: "Disable swinging at low durability.",
+    description: "Disable swinging at low durability",
+  },
+  {
+    id: "ping_sound",
+    default: true,
+    type: "boolean",
+    description: "Pings make sounds",
   },
 ];
 
