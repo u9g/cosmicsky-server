@@ -40,6 +40,15 @@ await client.query(`CREATE TABLE IF NOT EXISTS team_invites (
 		NOT NULL
 );`);
 
+await client.query(`CREATE TABLE IF NOT EXISTS player_settings (
+	player_uuid
+		TEXT
+		NOT NULL,
+	show_pings
+		BOOLEAN
+		NOT NULL
+);`);
+
 const res = await client.query("SELECT $1::text as message", ["Hello world!"]);
 console.log(res.rows[0].message); // Hello world!
 // await client.end();
@@ -76,6 +85,7 @@ Bun.serve<{ username: string; uuid: string }>({
           | { type: "leaveTeam" }
           | { type: "kickFromTeam"; playerName: string }
           | { type: "disbandTeam" }
+          | { type: "showSettings" }
           | { type: "invitetoteam"; playerInvited: string } =
           JSON.parse(message);
 
@@ -95,6 +105,30 @@ Bun.serve<{ username: string; uuid: string }>({
             if (teamIds.rows.length > 0) {
               ws.subscribe(teamIds.rows[0].team_id);
             }
+
+            const settings = await client.query(
+              `SELECT show_pings FROM player_settings WHERE player_uuid = $1;`,
+              [ws.data.uuid]
+            );
+
+            if (settings.rows.length > 0) {
+              const s = settings.rows[0];
+
+              if (s.show_pings) {
+                ws.publish(
+                  ws.data.uuid,
+                  JSON.stringify({
+                    type: "setting",
+                    name: "show_pings",
+                    value: s.show_pings,
+                  })
+                );
+              }
+            }
+            break;
+          }
+          case "showSettings": {
+            
             break;
           }
           case "disconnected": {
