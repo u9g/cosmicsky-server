@@ -11,6 +11,21 @@ await client.connect();
 // await client.query("DROP TABLE team_invites");
 // await client.query("DROP TABLE player_settings");
 
+const settings = [
+  {
+    id: "show_pings",
+    default: true,
+    type: "boolean",
+    description: "Show Pings ingame",
+  },
+  {
+    id: "pings_sent_to_chat",
+    default: false,
+    type: "boolean",
+    description: "Show Pings in chat",
+  },
+];
+
 await client.query(`CREATE TABLE IF NOT EXISTS teams (
 	team_id
 		TEXT
@@ -49,14 +64,17 @@ await client.query(`CREATE TABLE IF NOT EXISTS player_settings (
 	show_pings
 		BOOLEAN
 );`);
-await client.query(`DO $$
-BEGIN
-    -- Check if the column does not exist
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='player_settings' AND column_name='pings_sent_to_chat') THEN
-        -- Add the column if it does not exist
-        ALTER TABLE player_settings ADD COLUMN pings_sent_to_chat BOOLEAN;
-    END IF;
-END $$;`);
+
+for (let i = 1; i < settings.length; i++) {
+  await client.query(`DO $$
+  BEGIN
+      -- Check if the column does not exist
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='player_settings' AND column_name='${settings[i].id}') THEN
+          -- Add the column if it does not exist
+          ALTER TABLE player_settings ADD COLUMN ${settings[i].id} BOOLEAN;
+      END IF;
+  END $$;`);
+}
 
 const res = await client.query("SELECT $1::text as message", ["Hello world!"]);
 console.log(res.rows[0].message); // Hello world!
@@ -118,70 +136,70 @@ Bun.serve<{ username: string; uuid: string }>({
               ws.subscribe(teamIds.rows[0].team_id);
             }
 
-            const settings = await client.query(
-              `SELECT show_pings, pings_sent_to_chat FROM player_settings WHERE player_uuid = $1;`,
+            const settingsFromDB = await client.query(
+              `SELECT ${settings
+                .map((x) => x.id)
+                .join(", ")} FROM player_settings WHERE player_uuid = $1;`,
               [ws.data.uuid]
             );
 
-            if (settings.rows.length > 0) {
-              const s = settings.rows[0];
+            if (settingsFromDB.rows.length > 0) {
+              const s = settingsFromDB.rows[0];
 
-              if (s.show_pings) {
-                ws.publish(
-                  ws.data.uuid,
-                  JSON.stringify({
-                    type: "setting",
-                    name: "show_pings",
-                    value: s.show_pings,
-                  })
-                );
-              }
-              if (s.pings_sent_to_chat) {
-                ws.publish(
-                  ws.data.uuid,
-                  JSON.stringify({
-                    type: "setting",
-                    name: "pings_sent_to_chat",
-                    value: s.pings_sent_to_chat,
-                  })
-                );
+              for (const setting of settings) {
+                if (s[setting.id]) {
+                  ws.publish(
+                    ws.data.uuid,
+                    JSON.stringify({
+                      type: "setting",
+                      name: setting.id,
+                      value: s[setting.id],
+                    })
+                  );
+                }
               }
             }
             break;
           }
           case "showSettings": {
-            const settings = await client.query(
-              `SELECT show_pings FROM player_settings WHERE player_uuid = $1;`,
+            const settingsFromDB = await client.query(
+              `SELECT ${settings
+                .map((x) => x.id)
+                .join(", ")} FROM player_settings WHERE player_uuid = $1;`,
               [ws.data.uuid]
             );
 
-            const defaults = { show_pings: true, pings_sent_to_chat: false };
+            const defaults: Record<string, any> = {};
+            for (const setting of settings) {
+              defaults[setting.id] = setting.default;
+            }
 
             const playerSettings =
-              settings.rows.length > 0 ? settings.rows[0] : defaults;
-
-            let showPings = playerSettings.show_pings ?? defaults.show_pings;
-            let pingsSentToChat =
-              playerSettings.pings_sent_to_chat ?? defaults.pings_sent_to_chat;
+              settingsFromDB.rows.length > 0
+                ? settingsFromDB.rows[0]
+                : defaults;
 
             const enable = "<#f15bb5>Enable";
             const disable = "<#fee440>Disable";
 
             let lines = [
               "<#9b5de5><bold><u>Settings</u> <gray>(Click on setting to change)</gray>",
-
-              `<#00bbf9>Show Pings ingame <#00f5d4>=> <hover:show_text:'<white>Click to ${
-                !showPings ? enable : disable
-              }'><click:run_command:/skyplussettings show_pings ${
-                !showPings ? "enable" : "disable"
-              }>${showPings ? enable : disable}d</hover>`,
-
-              `<#00bbf9>Show Pings in chat <#00f5d4>=> <hover:show_text:'<white>Click to ${
-                !pingsSentToChat ? enable : disable
-              }'><click:run_command:/skyplussettings pings_sent_to_chat ${
-                !pingsSentToChat ? "enable" : "disable"
-              }>${pingsSentToChat ? enable : disable}d</hover>`,
             ];
+
+            for (const setting of settings) {
+              let settingCurrentValue =
+                playerSettings[setting.id] ?? defaults[setting.id];
+
+              lines.push(
+                `<#00bbf9>${
+                  setting.description
+                } <#00f5d4>=> <hover:show_text:'<white>Click to ${
+                  !settingCurrentValue ? enable : disable
+                }'><click:run_command:/skyplussettings ${setting.id} ${
+                  !settingCurrentValue ? "enable" : "disable"
+                }>${settingCurrentValue ? enable : disable}d</hover>`
+              );
+            }
 
             ws.publish(
               ws.data.uuid,
@@ -580,11 +598,12 @@ Bun.serve<{ username: string; uuid: string }>({
             }
 
             if (commandData.length === 2) {
-              if (commandData[0] === "show_pings") {
-                await booleanHandler("show_pings");
-              }
-              if (commandData[0] === "pings_sent_to_chat") {
-                await booleanHandler("pings_sent_to_chat");
+              for (const setting of settings) {
+                if (setting.type === "boolean") {
+                  if (commandData[0] === setting.id) {
+                    await booleanHandler(setting.id);
+                  }
+                }
               }
             }
             break;
