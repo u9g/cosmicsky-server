@@ -24,6 +24,12 @@ const settings = [
     type: "boolean",
     description: "Show Pings in chat",
   },
+  {
+    id: "allow_swinging_at_low_durability",
+    default: true,
+    type: "boolean",
+    description: "Disable swinging at low durability.",
+  },
 ];
 
 await client.query(`CREATE TABLE IF NOT EXISTS teams (
