@@ -94,6 +94,7 @@ Bun.serve<{ username: string; uuid: string }>({
           | { type: "kickFromTeam"; playerName: string }
           | { type: "disbandTeam" }
           | { type: "showSettings" }
+          | { type: "settingsCmd"; cmd: string }
           | { type: "invitetoteam"; playerInvited: string } =
           JSON.parse(message);
 
@@ -533,6 +534,57 @@ Bun.serve<{ username: string; uuid: string }>({
               );
             }
 
+            break;
+          }
+          case "settingsCmd": {
+            const commandData = packet.cmd.split(" ");
+
+            const updateQuery = (fieldName: string) =>
+              `INSERT INTO player_settings (player_uuid, ${fieldName}) VALUES ($1, $2) ON CONFLICT (player_uuid) DO UPDATE SET ${fieldName} = excluded.${fieldName};`;
+            async function booleanHandler(fieldName: string) {
+              if (commandData[1] === "true") {
+                await client.query(updateQuery(fieldName), [
+                  ws.data.uuid,
+                  true,
+                ]);
+                ws.publish(
+                  ws.data.uuid,
+                  JSON.stringify({
+                    type: "notification",
+                    message: "Updated show_pings to true.",
+                  })
+                );
+              } else if (commandData[1] === "false") {
+                await client.query(updateQuery(fieldName), [
+                  ws.data.uuid,
+                  false,
+                ]);
+                ws.publish(
+                  ws.data.uuid,
+                  JSON.stringify({
+                    type: "notification",
+                    message: `Updated ${fieldName} to false.`,
+                  })
+                );
+              } else {
+                ws.publish(
+                  ws.data.uuid,
+                  JSON.stringify({
+                    type: "notification",
+                    message: `Unexpected argument value (${commandData[1]}) for setting '${fieldName}', expected true or false.`,
+                  })
+                );
+              }
+            }
+
+            if (commandData.length === 2) {
+              if (commandData[0] === "show_pings") {
+                await booleanHandler("show_pings");
+              }
+              if (commandData[0] === "pings_sent_to_chat") {
+                await booleanHandler("pings_sent_to_chat");
+              }
+            }
             break;
           }
           default: {
