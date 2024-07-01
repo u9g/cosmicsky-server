@@ -55,6 +55,7 @@ const settings = [
   description: string;
 }[];
 
+// team_id should be UNIQUE
 await client.query(`CREATE TABLE IF NOT EXISTS teams (
 	team_id
 		TEXT
@@ -210,7 +211,7 @@ Bun.serve<{ username: string; uuid: string }>({
 
             await sendSettingsToClient();
 
-            if (packet.version !== "1.1.0") {
+            if (packet.version !== "1.1.1") {
               // todo: send message to update mod
               ws.publish(
                 ws.data.uuid,
@@ -485,6 +486,7 @@ Bun.serve<{ username: string; uuid: string }>({
           case "createTeam": {
             const { uuid } = ws.data;
 
+            // Looks for teams which have the team name you wanted
             {
               const teamIds = await client.query(
                 `SELECT owner_uuid FROM teams WHERE team_id = $1;`,
