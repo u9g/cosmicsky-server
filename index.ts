@@ -198,9 +198,7 @@ Bun.serve<{ username: string; uuid: string }>({
               [ws.data.uuid]
             );
 
-            console.log("a");
             if (teamIds.rows.length > 0) {
-              console.log(teamIds.rows[0].team_id);
               ws.subscribe(teamIds.rows[0].team_id);
               ws.publish(
                 ws.data.uuid,
