@@ -9,6 +9,51 @@ await client.connect();
 // await client.query("DROP TABLE teams");
 // await client.query("DROP TABLE team_members");
 // await client.query("DROP TABLE team_invites");
+// await client.query("DROP TABLE player_settings");
+
+const settings = [
+  {
+    id: "show_pings",
+    default: true,
+    type: "boolean",
+    description: "Show Pings ingame",
+  },
+  {
+    id: "pings_sent_to_chat",
+    default: false,
+    type: "boolean",
+    description: "Show Pings in chat",
+  },
+  {
+    id: "disable_swinging_at_low_durability",
+    default: true,
+    type: "boolean",
+    description: "Disable swinging at low durability",
+  },
+  {
+    id: "should_ping_make_sounds",
+    default: true,
+    type: "boolean",
+    description: "Pings make sounds",
+  },
+  {
+    id: "should_show_death_pings",
+    default: true,
+    type: "boolean",
+    description: "Show death pings",
+  },
+  {
+    id: "replace_fix_to_fix_all",
+    default: true,
+    type: "boolean",
+    description: "Redirect /fix to /fix all",
+  },
+] as const satisfies {
+  id: string;
+  default: boolean;
+  type: "boolean";
+  description: string;
+}[];
 
 await client.query(`CREATE TABLE IF NOT EXISTS teams (
 	team_id
@@ -40,6 +85,28 @@ await client.query(`CREATE TABLE IF NOT EXISTS team_invites (
 		NOT NULL
 );`);
 
+await client.query(`CREATE TABLE IF NOT EXISTS player_settings (
+	player_uuid
+		TEXT
+    UNIQUE
+		NOT NULL,
+	show_pings
+		BOOLEAN
+);`);
+
+for (let i = 1; i < settings.length; i++) {
+  if (settings[i].type === "boolean") {
+    await client.query(`DO $$
+  BEGIN
+      -- Check if the column does not exist
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='player_settings' AND column_name='${settings[i].id}') THEN
+          -- Add the column if it does not exist
+          ALTER TABLE player_settings ADD COLUMN ${settings[i].id} BOOLEAN;
+      END IF;
+  END $$;`);
+  }
+}
+
 const res = await client.query("SELECT $1::text as message", ["Hello world!"]);
 console.log(res.rows[0].message); // Hello world!
 // await client.end();
@@ -65,22 +132,59 @@ Bun.serve<{ username: string; uuid: string }>({
     publishToSelf: true,
     async message(ws, message) {
       if (typeof message !== "string") return;
+
+      async function sendSettingsToClient() {
+        const settingsFromDB = await client.query(
+          `SELECT ${settings
+            .map((x) => x.id)
+            .join(", ")} FROM player_settings WHERE player_uuid = $1;`,
+          [ws.data.uuid]
+        );
+
+        if (settingsFromDB.rows.length > 0) {
+          const s = settingsFromDB.rows[0];
+
+          const keys = Object.keys(s);
+
+          for (const setting of settings) {
+            if (keys.includes(setting.id)) {
+              ws.publish(
+                ws.data.uuid,
+                JSON.stringify({
+                  type: "setting",
+                  name: setting.id,
+                  value: s[setting.id],
+                })
+              );
+            }
+          }
+        }
+      }
+
       try {
         const packet:
-          | { type: "connected"; username: string; uuid: string }
+          | {
+              type: "connected";
+              username: string;
+              uuid: string;
+              version?: string;
+            }
           | { type: "disconnected" }
-          | { type: "ping"; x: number; y: number; z: number }
+          | { type: "ping"; x: number; y: number; z: number; pingType?: string }
           | { type: "createTeam"; teamName: string }
           | { type: "joinTeam"; teamName: string }
           | { type: "listTeamMembers" }
           | { type: "leaveTeam" }
           | { type: "kickFromTeam"; playerName: string }
           | { type: "disbandTeam" }
+          | { type: "showSettings" }
+          | { type: "settingsCmd"; cmd: string }
           | { type: "invitetoteam"; playerInvited: string } =
           JSON.parse(message);
 
         console.log(`received packet: ${JSON.stringify(packet)}`);
 
+        if (packet.type !== "connected" && !ws.data) return;
         switch (packet.type) {
           case "connected": {
             const { username, uuid } = packet;
@@ -94,7 +198,98 @@ Bun.serve<{ username: string; uuid: string }>({
 
             if (teamIds.rows.length > 0) {
               ws.subscribe(teamIds.rows[0].team_id);
+              ws.publish(
+                ws.data.uuid,
+                JSON.stringify({
+                  type: "setting",
+                  name: "enable_mod",
+                  value: true,
+                })
+              );
             }
+
+            await sendSettingsToClient();
+
+            if (packet.version !== "1.1.0") {
+              // todo: send message to update mod
+            }
+            break;
+          }
+          case "showSettings": {
+            const settingsFromDB = await client.query(
+              `SELECT ${settings
+                .map((x) => x.id)
+                .join(", ")} FROM player_settings WHERE player_uuid = $1;`,
+              [ws.data.uuid]
+            );
+
+            const defaults: Record<string, any> = {};
+            for (const setting of settings) {
+              defaults[setting.id] = setting.default;
+            }
+
+            const playerSettings =
+              settingsFromDB.rows.length > 0
+                ? settingsFromDB.rows[0]
+                : defaults;
+
+            const enable = "<#fee440>Enable";
+            const disable = "<#f15bb5>Disable";
+
+            let lines = [
+              "<#9b5de5><bold><u>Settings</u> <gray>(Click on setting to change)</gray>",
+            ];
+
+            for (const setting of settings) {
+              let settingCurrentValue =
+                playerSettings[setting.id] ?? defaults[setting.id];
+
+              lines.push(
+                `<#00bbf9>${
+                  setting.description
+                } <#00f5d4>=> <hover:show_text:'<white>Click to ${
+                  !settingCurrentValue ? enable : disable
+                }'><click:run_command:/skyplussettings ${setting.id} ${
+                  !settingCurrentValue ? "enable" : "disable"
+                }>${settingCurrentValue ? enable : disable}d</hover>`
+              );
+            }
+
+            const json = await (
+              await fetch("https://webui.advntr.dev/api/mini-to-json", {
+                headers: {
+                  accept: "*/*",
+                  "accept-language": "en-US,en;q=0.9",
+                  "cache-control": "max-age=0",
+                  "content-type": "text/plain; charset=UTF-8",
+                  priority: "u=1, i",
+                  "sec-ch-ua":
+                    '"Not/A)Brand";v="8", "Chromium";v="126", "Google Chrome";v="126"',
+                  "sec-ch-ua-mobile": "?0",
+                  "sec-ch-ua-platform": '"Windows"',
+                  "sec-fetch-dest": "empty",
+                  "sec-fetch-mode": "cors",
+                  "sec-fetch-site": "same-origin",
+                },
+                referrer: "https://webui.advntr.dev/",
+                referrerPolicy: "strict-origin-when-cross-origin",
+                body: JSON.stringify({
+                  miniMessage: "\n\n" + lines.join("\n\n") + "\n\n",
+                  placeholders: { stringPlaceholders: {} },
+                }),
+                method: "POST",
+                mode: "cors",
+                credentials: "omit",
+              })
+            ).text();
+
+            ws.publish(
+              ws.data.uuid,
+              JSON.stringify({
+                type: "notification",
+                json,
+              })
+            );
             break;
           }
           case "disconnected": {
@@ -375,7 +570,6 @@ Bun.serve<{ username: string; uuid: string }>({
 
             break;
           }
-
           case "invitetoteam": {
             const teamIds = await client.query(
               `SELECT team_id FROM teams WHERE owner_uuid = $1;`,
@@ -415,7 +609,6 @@ Bun.serve<{ username: string; uuid: string }>({
 
             break;
           }
-
           case "ping": {
             console.log(`data: ${JSON.stringify(ws.data)}`);
 
@@ -426,10 +619,18 @@ Bun.serve<{ username: string; uuid: string }>({
             const { username, uuid } = ws.data;
             if (teamIds.rows.length > 0) {
               const { team_id } = teamIds.rows[0];
-              const { x, y, z } = packet;
+              const { x, y, z, pingType } = packet;
+              let pingTypeToSend = pingType ?? "manual";
               ws.publish(
                 team_id,
-                JSON.stringify({ x, y, z, username, type: "ping" })
+                JSON.stringify({
+                  x,
+                  y,
+                  z,
+                  username,
+                  type: "ping",
+                  pingType: pingTypeToSend,
+                })
               );
               console.log(`${username} pinged (${x}, ${y}, ${z})`);
             } else {
@@ -443,6 +644,60 @@ Bun.serve<{ username: string; uuid: string }>({
               );
             }
 
+            break;
+          }
+          case "settingsCmd": {
+            const commandData = packet.cmd.split(" ");
+
+            const updateQuery = (fieldName: string) =>
+              `INSERT INTO player_settings (player_uuid, ${fieldName}) VALUES ($1, $2) ON CONFLICT (player_uuid) DO UPDATE SET ${fieldName} = excluded.${fieldName};`;
+            async function booleanHandler(fieldName: string) {
+              if (commandData[1] === "enable") {
+                await client.query(updateQuery(fieldName), [
+                  ws.data.uuid,
+                  true,
+                ]);
+                ws.publish(
+                  ws.data.uuid,
+                  JSON.stringify({
+                    type: "notification",
+                    message: `Updated ${fieldName} to true.`,
+                  })
+                );
+              } else if (commandData[1] === "disable") {
+                await client.query(updateQuery(fieldName), [
+                  ws.data.uuid,
+                  false,
+                ]);
+                ws.publish(
+                  ws.data.uuid,
+                  JSON.stringify({
+                    type: "notification",
+                    message: `Updated ${fieldName} to false.`,
+                  })
+                );
+              } else {
+                ws.publish(
+                  ws.data.uuid,
+                  JSON.stringify({
+                    type: "notification",
+                    message: `Unexpected argument value (${commandData[1]}) for setting '${fieldName}', expected true or false.`,
+                  })
+                );
+              }
+            }
+
+            if (commandData.length === 2) {
+              for (const setting of settings) {
+                if (setting.type === "boolean") {
+                  if (commandData[0] === setting.id) {
+                    await booleanHandler(setting.id);
+                  }
+                }
+              }
+            }
+
+            await sendSettingsToClient();
             break;
           }
           default: {
