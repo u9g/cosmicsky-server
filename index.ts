@@ -221,11 +221,39 @@ Bun.serve<{ username: string; uuid: string }>({
               );
             }
 
+            const json = await (
+              await fetch("https://webui.advntr.dev/api/mini-to-json", {
+                headers: {
+                  accept: "*/*",
+                  "accept-language": "en-US,en;q=0.9",
+                  "cache-control": "max-age=0",
+                  "content-type": "text/plain; charset=UTF-8",
+                  priority: "u=1, i",
+                  "sec-ch-ua":
+                    '"Not/A)Brand";v="8", "Chromium";v="126", "Google Chrome";v="126"',
+                  "sec-ch-ua-mobile": "?0",
+                  "sec-ch-ua-platform": '"Windows"',
+                  "sec-fetch-dest": "empty",
+                  "sec-fetch-mode": "cors",
+                  "sec-fetch-site": "same-origin",
+                },
+                referrer: "https://webui.advntr.dev/",
+                referrerPolicy: "strict-origin-when-cross-origin",
+                body: JSON.stringify({
+                  miniMessage: lines.join("\n\n"),
+                  placeholders: { stringPlaceholders: {} },
+                }),
+                method: "POST",
+                mode: "cors",
+                credentials: "omit",
+              })
+            ).text();
+
             ws.publish(
               ws.data.uuid,
               JSON.stringify({
                 type: "notification",
-                minimessage: "\n\n" + lines.join("\n\n") + "\n\n",
+                json,
               })
             );
             break;
