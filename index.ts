@@ -114,18 +114,18 @@ console.log(res.rows[0].message); // Hello world!
 
 async function uuidFromUsername(username: string): Promise<string> {
   const response = (await (
-    await fetch(`https://api.ashcon.app/mojang/v2/user/${username}`)
+    await fetch(`https://playerdb.co/api/player/minecraft/${username}`)
   ).json()) as any;
 
-  return response.uuid;
+  return response.data.player.username;
 }
 
 async function usernameFromUUID(uuid: string): Promise<string> {
   const response = (await (
-    await fetch(`https://api.ashcon.app/mojang/v2/user/${uuid}`)
+    await fetch(`https://playerdb.co/api/player/minecraft/${uuid}`)
   ).json()) as any;
 
-  return response.username;
+  return response.data.player.id;
 }
 
 Bun.serve<{ username: string; uuid: string }>({
@@ -198,7 +198,9 @@ Bun.serve<{ username: string; uuid: string }>({
               [ws.data.uuid]
             );
 
+            console.log("a");
             if (teamIds.rows.length > 0) {
+              console.log(teamIds.rows[0].team_id);
               ws.subscribe(teamIds.rows[0].team_id);
               ws.publish(
                 ws.data.uuid,
@@ -300,10 +302,6 @@ Bun.serve<{ username: string; uuid: string }>({
                 json,
               })
             );
-            break;
-          }
-          case "disconnected": {
-            // ws.unsubscribe();
             break;
           }
           case "joinTeam": {
@@ -626,14 +624,14 @@ Bun.serve<{ username: string; uuid: string }>({
               [ws.data.uuid]
             );
 
-            const { username } = ws.data;
+            const { uuid } = ws.data;
             if (teamIds.rows.length > 0) {
               const { team_id } = teamIds.rows[0];
               const { secLeft, tpType } = packet;
               ws.publish(
                 team_id,
                 JSON.stringify({
-                  username,
+                  uuid,
                   type: "tpTimer",
                   tpType,
                   secLeft,
