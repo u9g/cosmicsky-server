@@ -661,7 +661,7 @@ Bun.serve<{ username: string; uuid: string }>({
                   ws.data.uuid,
                   JSON.stringify({
                     type: "notification",
-                    message: "Updated show_pings to true.",
+                    message: `Updated ${fieldName} to true.`,
                   })
                 );
               } else if (commandData[1] === "disable") {
