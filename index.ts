@@ -42,7 +42,18 @@ const settings = [
     type: "boolean",
     description: "Show death pings",
   },
-];
+  {
+    id: "replace_fix_to_fix_all",
+    default: true,
+    type: "boolean",
+    description: "Redirect /fix to /fix all",
+  },
+] as const satisfies {
+  id: string;
+  default: boolean;
+  type: "boolean";
+  description: string;
+}[];
 
 await client.query(`CREATE TABLE IF NOT EXISTS teams (
 	team_id
@@ -152,7 +163,12 @@ Bun.serve<{ username: string; uuid: string }>({
 
       try {
         const packet:
-          | { type: "connected"; username: string; uuid: string }
+          | {
+              type: "connected";
+              username: string;
+              uuid: string;
+              version?: string;
+            }
           | { type: "disconnected" }
           | { type: "ping"; x: number; y: number; z: number; pingType?: string }
           | { type: "createTeam"; teamName: string }
@@ -185,6 +201,9 @@ Bun.serve<{ username: string; uuid: string }>({
             }
 
             await sendSettingsToClient();
+
+            if (packet.version !== "1.1.0") {
+            }
             break;
           }
           case "showSettings": {
