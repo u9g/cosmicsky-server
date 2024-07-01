@@ -217,7 +217,7 @@ Bun.serve<{ username: string; uuid: string }>({
                 JSON.stringify({
                   type: "notification",
                   message:
-                    "\n\nUpdate to latest version of the mod in #mods in NF disc.\n\n",
+                    "\n\nUpdate to latest version of the mod for a ton of new features in #mods in NF disc.\n\n",
                 })
               );
             }
