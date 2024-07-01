@@ -212,6 +212,14 @@ Bun.serve<{ username: string; uuid: string }>({
 
             if (packet.version !== "1.1.0") {
               // todo: send message to update mod
+              ws.publish(
+                ws.data.uuid,
+                JSON.stringify({
+                  type: "notification",
+                  message:
+                    "\n\nUpdate to latest version of the mod in #mods in NF disc.\n\n",
+                })
+              );
             }
             break;
           }
