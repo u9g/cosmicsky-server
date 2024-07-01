@@ -180,6 +180,7 @@ Bun.serve<{ username: string; uuid: string }>({
           | { type: "disbandTeam" }
           | { type: "showSettings" }
           | { type: "settingsCmd"; cmd: string }
+          | { type: "tpTimer"; tpType: "outOfAdv"; secLeft: string }
           | { type: "invitetoteam"; playerInvited: string } =
           JSON.parse(message);
 
@@ -613,6 +614,29 @@ Bun.serve<{ username: string; uuid: string }>({
                 JSON.stringify({
                   type: "notification",
                   message: `You have been invited to team: '${teamId}'. To join run /jointeam ${teamId}`,
+                })
+              );
+            }
+
+            break;
+          }
+          case "tpTimer": {
+            const teamIds = await client.query(
+              `SELECT team_id FROM team_members WHERE player_uuid = $1;`,
+              [ws.data.uuid]
+            );
+
+            const { username } = ws.data;
+            if (teamIds.rows.length > 0) {
+              const { team_id } = teamIds.rows[0];
+              const { secLeft, tpType } = packet;
+              ws.publish(
+                team_id,
+                JSON.stringify({
+                  username,
+                  type: "tpTimer",
+                  tpType,
+                  secLeft,
                 })
               );
             }
