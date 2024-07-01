@@ -198,11 +198,20 @@ Bun.serve<{ username: string; uuid: string }>({
 
             if (teamIds.rows.length > 0) {
               ws.subscribe(teamIds.rows[0].team_id);
+              ws.publish(
+                ws.data.uuid,
+                JSON.stringify({
+                  type: "setting",
+                  name: "enable_mod",
+                  value: true,
+                })
+              );
             }
 
             await sendSettingsToClient();
 
             if (packet.version !== "1.1.0") {
+              // todo: send message to update mod
             }
             break;
           }
