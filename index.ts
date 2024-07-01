@@ -9,7 +9,7 @@ await client.connect();
 // await client.query("DROP TABLE teams");
 // await client.query("DROP TABLE team_members");
 // await client.query("DROP TABLE team_invites");
-await client.query("DROP TABLE player_settings");
+// await client.query("DROP TABLE player_settings");
 
 const settings = [
   {
@@ -35,6 +35,12 @@ const settings = [
     default: true,
     type: "boolean",
     description: "Pings make sounds",
+  },
+  {
+    id: "should_show_death_pings",
+    default: true,
+    type: "boolean",
+    description: "Show death pings",
   },
 ];
 
@@ -148,7 +154,7 @@ Bun.serve<{ username: string; uuid: string }>({
         const packet:
           | { type: "connected"; username: string; uuid: string }
           | { type: "disconnected" }
-          | { type: "ping"; x: number; y: number; z: number }
+          | { type: "ping"; x: number; y: number; z: number; pingType?: string }
           | { type: "createTeam"; teamName: string }
           | { type: "joinTeam"; teamName: string }
           | { type: "listTeamMembers" }
@@ -240,7 +246,7 @@ Bun.serve<{ username: string; uuid: string }>({
                 referrer: "https://webui.advntr.dev/",
                 referrerPolicy: "strict-origin-when-cross-origin",
                 body: JSON.stringify({
-                  miniMessage: lines.join("\n\n"),
+                  miniMessage: "\n\n" + lines.join("\n\n") + "\n\n",
                   placeholders: { stringPlaceholders: {} },
                 }),
                 method: "POST",
@@ -585,10 +591,18 @@ Bun.serve<{ username: string; uuid: string }>({
             const { username, uuid } = ws.data;
             if (teamIds.rows.length > 0) {
               const { team_id } = teamIds.rows[0];
-              const { x, y, z } = packet;
+              const { x, y, z, pingType } = packet;
+              let pingTypeToSend = pingType ?? "manual";
               ws.publish(
                 team_id,
-                JSON.stringify({ x, y, z, username, type: "ping" })
+                JSON.stringify({
+                  x,
+                  y,
+                  z,
+                  username,
+                  type: "ping",
+                  pingType: pingTypeToSend,
+                })
               );
               console.log(`${username} pinged (${x}, ${y}, ${z})`);
             } else {
